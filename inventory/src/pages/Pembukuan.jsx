@@ -35,6 +35,17 @@ export default function Pembukuan() {
     selling_price: "",
     discount: "",
   });
+  const [stats, setStats] = useState({
+    totalTransactions: 0,
+    profitableTransactions: 0,
+    totalProfit: 0,
+    averageProfit: 0,
+    totalQuantity: 0,
+    totalPurchaseValue: 0,
+    totalSellingValue: 0,
+    totalDiscountValue: 0,
+    productProfits: []
+  });
   const { showSuccess, showError } = useNotification();
 
   // Fetch function for pagination
@@ -68,9 +79,25 @@ export default function Pembukuan() {
     return () => clearTimeout(timeoutId);
   }, [searchTerm]);
 
+  // Fetch statistics
+  const fetchStats = async () => {
+    try {
+      const response = await api.get('/api/pembukuan/stats', {
+        params: {
+          startDate: dateRange.startDate,
+          endDate: dateRange.endDate,
+        }
+      });
+      setStats(response.data);
+    } catch (error) {
+      console.error('Error fetching stats:', error);
+    }
+  };
+
   // Update date range
   useEffect(() => {
     refresh();
+    fetchStats();
   }, [dateRange]);
 
   const handleEdit = (product) => {
@@ -119,39 +146,19 @@ export default function Pembukuan() {
     return numValue.toLocaleString("id-ID");
   };
 
-  // Calculate profit summary
-  const profitSummary = pembukuan.reduce(
-    (summary, item) => {
-      const profit = parseFloat(item.margin) || 0;
-      summary.totalProfit += profit;
-      if (profit > 0) {
-        summary.profitableProducts += 1;
-      }
-      summary.totalProducts += 1;
-      return summary;
-    },
-    { totalProfit: 0, profitableProducts: 0, totalProducts: 0 }
-  );
+  // Use stats from API instead of local calculation
+  const profitSummary = {
+    totalProfit: stats.totalProfit,
+    profitableProducts: stats.profitableTransactions,
+    totalProducts: stats.totalTransactions
+  };
 
-  // Get individual product profits (grouped by product)
-  const productProfits = pembukuan
-    .reduce((acc, item) => {
-      const existing = acc.find(p => p.code === item.code);
-      const profit = parseFloat(item.margin) || 0;
-      
-      if (existing) {
-        existing.profit += profit;
-      } else {
-        acc.push({
-          name: item.name,
-          code: item.code,
-          profit: profit,
-        });
-      }
-      return acc;
-    }, [])
-    .filter((item) => item.profit > 0)
-    .sort((a, b) => b.profit - a.profit);
+  // Use product profits from API
+  const productProfits = stats.productProfits.map(item => ({
+    name: item.name,
+    code: item.code,
+    profit: parseFloat(item.total_profit) || 0
+  }));
 
   const exportToExcel = () => {
     const exportData = pembukuan.map((item) => ({
@@ -313,11 +320,7 @@ export default function Pembukuan() {
               </p>
               <p className="text-xl font-bold text-purple-600">
                 Rp{" "}
-                {profitSummary.totalProducts > 0
-                  ? formatCurrency(
-                      profitSummary.totalProfit / profitSummary.totalProducts
-                    )
-                  : "0"}
+                {formatCurrency(stats.averageProfit)}
               </p>
             </div>
           </div>
@@ -377,11 +380,16 @@ export default function Pembukuan() {
                   step="0.01"
                   className="form-input"
                   value={formData.purchase_price}
-                  onChange={(e) =>
-                    setFormData({ ...formData, purchase_price: e.target.value })
-                  }
+                  onChange={(e) => {
+                    const value = e.target.value
+                    // Prevent negative values (allow 0 for price)
+                    if (value === '' || (parseFloat(value) >= 0)) {
+                      setFormData({ ...formData, purchase_price: value })
+                    }
+                  }}
                   placeholder="0.00"
                   required
+                  min="0"
                 />
               </div>
 
@@ -392,11 +400,16 @@ export default function Pembukuan() {
                   step="0.01"
                   className="form-input"
                   value={formData.selling_price}
-                  onChange={(e) =>
-                    setFormData({ ...formData, selling_price: e.target.value })
-                  }
+                  onChange={(e) => {
+                    const value = e.target.value
+                    // Prevent negative values (allow 0 for price)
+                    if (value === '' || (parseFloat(value) >= 0)) {
+                      setFormData({ ...formData, selling_price: value })
+                    }
+                  }}
                   placeholder="0.00"
                   required
+                  min="0"
                 />
               </div>
 
@@ -407,10 +420,15 @@ export default function Pembukuan() {
                   step="0.01"
                   className="form-input"
                   value={formData.discount}
-                  onChange={(e) =>
-                    setFormData({ ...formData, discount: e.target.value })
-                  }
+                  onChange={(e) => {
+                    const value = e.target.value
+                    // Prevent negative values (allow 0 for discount)
+                    if (value === '' || (parseFloat(value) >= 0)) {
+                      setFormData({ ...formData, discount: value })
+                    }
+                  }}
                   placeholder="0.00"
+                  min="0"
                 />
               </div>
 
@@ -541,13 +559,40 @@ export default function Pembukuan() {
             </div>
 
             {/* Pagination */}
-            <Pagination
-              currentPage={pagination.page}
-              totalPages={pagination.totalPages}
-              totalItems={pagination.total}
-              itemsPerPage={pagination.limit}
-              onPageChange={goToPage}
-            />
+            <div className="mt-4 flex flex-col sm:flex-row justify-between items-center gap-4">
+              {/* Items per page selector */}
+              <div className="flex items-center gap-2">
+                <label className="text-sm text-gray-600">Tampilkan:</label>
+                <select
+                  className="form-select text-sm"
+                  value={pagination.limit}
+                  onChange={(e) => {
+                    updateParams({
+                      limit: parseInt(e.target.value),
+                      page: 1,
+                    });
+                  }}
+                >
+                  <option value={10}>10</option>
+                  <option value={20}>20</option>
+                  <option value={50}>50</option>
+                </select>
+                <span className="text-sm text-gray-600">
+                  dari {pagination.total} item
+                </span>
+              </div>
+
+              {/* Pagination */}
+              {pagination.totalPages > 1 && (
+                <Pagination
+                  currentPage={pagination.page}
+                  totalPages={pagination.totalPages}
+                  totalItems={pagination.total}
+                  itemsPerPage={pagination.limit}
+                  onPageChange={goToPage}
+                />
+              )}
+            </div>
           </>
         )}
       </div>

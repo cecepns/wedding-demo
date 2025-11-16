@@ -103,8 +103,9 @@ const getPaginationParams = (req) => {
   const limit = parseInt(req.query.limit) || 10
   const offset = (page - 1) * limit
   const search = req.query.search || ''
+  const sort = req.query.sort || ''
   
-  return { page, limit, offset, search }
+  return { page, limit, offset, search, sort }
 }
 
 // Auth Routes
@@ -162,7 +163,6 @@ app.get('/api/dashboard/stats', authenticateToken, async (req, res) => {
   try {
     const { period = 'all' } = req.query
     
-    let dateCondition = ''
     let dateFilter = ''
     
     switch (period) {
@@ -183,23 +183,44 @@ app.get('/api/dashboard/stats', authenticateToken, async (req, res) => {
         dateFilter = '' // No date filter for all-time stats
     }
 
-    // Total stock
+    // Total stock (current stock from products table)
     const [totalStockResult] = await db.execute(
       'SELECT SUM(current_stock) as total FROM products'
     )
     const totalStock = totalStockResult[0].total || 0
 
-    // Incoming goods
+    // Total initial stock
+    const [totalInitialStockResult] = await db.execute(
+      'SELECT SUM(initial_stock) as total FROM products'
+    )
+    const totalInitialStock = totalInitialStockResult[0].total || 0
+
+    // Incoming goods (period-based)
     const [incomingResult] = await db.execute(
       `SELECT SUM(quantity) as total FROM incoming_goods ${dateFilter}`
     )
     const incomingGoods = incomingResult[0].total || 0
 
-    // Outgoing goods
+    // Outgoing goods (period-based)
     const [outgoingResult] = await db.execute(
       `SELECT SUM(quantity) as total FROM outgoing_goods ${dateFilter}`
     )
     const outgoingGoods = outgoingResult[0].total || 0
+
+    // Total incoming goods (all-time)
+    const [totalIncomingResult] = await db.execute(
+      'SELECT SUM(quantity) as total FROM incoming_goods'
+    )
+    const totalIncomingGoods = totalIncomingResult[0].total || 0
+
+    // Total outgoing goods (all-time)
+    const [totalOutgoingResult] = await db.execute(
+      'SELECT SUM(quantity) as total FROM outgoing_goods'
+    )
+    const totalOutgoingGoods = totalOutgoingResult[0].total || 0
+
+    // Calculated stock (should match totalStock if data is consistent)
+    const calculatedStock = totalInitialStock + totalIncomingGoods - totalOutgoingGoods
 
     // Top stock products
     const [topStockProducts] = await db.execute(
@@ -235,8 +256,16 @@ app.get('/api/dashboard/stats', authenticateToken, async (req, res) => {
 
     res.json({
       totalStock,
+      totalInitialStock,
       incomingGoods,
       outgoingGoods,
+      totalIncomingGoods,
+      totalOutgoingGoods,
+      calculatedStock,
+      stockConsistency: {
+        isConsistent: totalStock === calculatedStock,
+        difference: totalStock - calculatedStock
+      },
       topStockProducts: topStockProducts || [],
       mostOutgoingProducts: mostOutgoingProducts || [],
       outOfStockProducts: outOfStockProducts || [],
@@ -251,7 +280,7 @@ app.get('/api/dashboard/stats', authenticateToken, async (req, res) => {
 // Products Routes
 app.get('/api/products', authenticateToken, async (req, res) => {
   try {
-    const { page, limit, offset, search } = getPaginationParams(req)
+    const { page, limit, offset, search, sort } = getPaginationParams(req)
     
     let whereClause = ''
     let params = []
@@ -259,6 +288,20 @@ app.get('/api/products', authenticateToken, async (req, res) => {
     if (search) {
       whereClause = 'WHERE name LIKE ? OR code LIKE ? OR category LIKE ? OR brand LIKE ?'
       params = [`%${search}%`, `%${search}%`, `%${search}%`, `%${search}%`]
+    }
+    
+    // Determine sort order
+    let orderClause = 'ORDER BY name ASC' // default sort
+    if (sort === 'name_desc') {
+      orderClause = 'ORDER BY name DESC'
+    } else if (sort === 'brand') {
+      orderClause = 'ORDER BY brand ASC'
+    } else if (sort === 'brand_desc') {
+      orderClause = 'ORDER BY brand DESC'
+    } else if (sort === 'date') {
+      orderClause = 'ORDER BY id ASC' // Using id as proxy for creation date
+    } else if (sort === 'date_desc') {
+      orderClause = 'ORDER BY id DESC'
     }
     
     // Get total count
@@ -270,7 +313,7 @@ app.get('/api/products', authenticateToken, async (req, res) => {
     
     // Get paginated data
     const [products] = await db.execute(
-      `SELECT * FROM products ${whereClause} ORDER BY name LIMIT ? OFFSET ?`,
+      `SELECT * FROM products ${whereClause} ${orderClause} LIMIT ? OFFSET ?`,
       [...params, limit, offset]
     )
     
@@ -397,7 +440,7 @@ app.delete('/api/products/:id', authenticateToken, requireRole(['manager']), asy
 // Incoming Goods Routes
 app.get('/api/incoming-goods', authenticateToken, async (req, res) => {
   try {
-    const { page, limit, offset, search } = getPaginationParams(req)
+    const { page, limit, offset, search, sort } = getPaginationParams(req)
     
     let whereClause = ''
     let params = []
@@ -405,6 +448,14 @@ app.get('/api/incoming-goods', authenticateToken, async (req, res) => {
     if (search) {
       whereClause = 'WHERE product_name LIKE ? OR product_code LIKE ? OR resi_number LIKE ? OR platform LIKE ?'
       params = [`%${search}%`, `%${search}%`, `%${search}%`, `%${search}%`]
+    }
+    
+    // Determine sort order
+    let orderClause = 'ORDER BY date DESC, id DESC' // default sort
+    if (sort === 'brand') {
+      orderClause = 'ORDER BY brand ASC, date DESC, id DESC'
+    } else if (sort === 'brand_desc') {
+      orderClause = 'ORDER BY brand DESC, date DESC, id DESC'
     }
     
     // Get total count
@@ -416,7 +467,7 @@ app.get('/api/incoming-goods', authenticateToken, async (req, res) => {
     
     // Get paginated data
     const [incomingGoods] = await db.execute(
-      `SELECT * FROM incoming_goods ${whereClause} ORDER BY date DESC LIMIT ? OFFSET ?`,
+      `SELECT * FROM incoming_goods ${whereClause} ${orderClause} LIMIT ? OFFSET ?`,
       [...params, limit, offset]
     )
     
@@ -431,6 +482,52 @@ app.get('/api/incoming-goods', authenticateToken, async (req, res) => {
     })
   } catch (error) {
     console.error('Get incoming goods error:', error)
+    res.status(500).json({ message: 'Server error' })
+  }
+})
+
+// Get incoming goods for order comparison (based on product codes)
+app.get('/api/incoming-goods/for-comparison', authenticateToken, async (req, res) => {
+  try {
+    const { productCodes, startDate, endDate } = req.query
+    
+    let whereClause = ''
+    let params = []
+    
+    // If product codes are provided, filter by them
+    if (productCodes) {
+      const codes = productCodes.split(',')
+      const placeholders = codes.map(() => '?').join(',')
+      whereClause = `WHERE product_code IN (${placeholders})`
+      params = [...codes]
+    }
+    
+    // Add date filter if provided
+    if (startDate && endDate) {
+      const dateFilter = whereClause ? 'AND' : 'WHERE'
+      whereClause += ` ${dateFilter} DATE(date) BETWEEN ? AND ?`
+      params.push(startDate, endDate)
+    } else if (startDate) {
+      const dateFilter = whereClause ? 'AND' : 'WHERE'
+      whereClause += ` ${dateFilter} DATE(date) >= ?`
+      params.push(startDate)
+    } else if (endDate) {
+      const dateFilter = whereClause ? 'AND' : 'WHERE'
+      whereClause += ` ${dateFilter} DATE(date) <= ?`
+      params.push(endDate)
+    }
+    
+    // Get all matching incoming goods (no pagination for comparison)
+    const [incomingGoods] = await db.execute(
+      `SELECT * FROM incoming_goods ${whereClause} ORDER BY date DESC, id DESC, product_name`,
+      params
+    )
+    
+    res.json({
+      data: incomingGoods
+    })
+  } catch (error) {
+    console.error('Get incoming goods for comparison error:', error)
     res.status(500).json({ message: 'Server error' })
   }
 })
@@ -565,7 +662,7 @@ app.delete('/api/incoming-goods/:id', authenticateToken, requireRole(['manager']
 // Outgoing Goods Routes
 app.get('/api/outgoing-goods', authenticateToken, async (req, res) => {
   try {
-    const { page, limit, offset, search } = getPaginationParams(req)
+    const { page, limit, offset, search, sort } = getPaginationParams(req)
     
     let whereClause = ''
     let params = []
@@ -573,6 +670,14 @@ app.get('/api/outgoing-goods', authenticateToken, async (req, res) => {
     if (search) {
       whereClause = 'WHERE product_name LIKE ? OR product_code LIKE ? OR resi_number LIKE ?'
       params = [`%${search}%`, `%${search}%`, `%${search}%`]
+    }
+    
+    // Determine sort order
+    let orderClause = 'ORDER BY date DESC, id DESC' // default sort
+    if (sort === 'brand') {
+      orderClause = 'ORDER BY brand ASC, date DESC, id DESC'
+    } else if (sort === 'brand_desc') {
+      orderClause = 'ORDER BY brand DESC, date DESC, id DESC'
     }
     
     // Get total count
@@ -584,7 +689,7 @@ app.get('/api/outgoing-goods', authenticateToken, async (req, res) => {
     
     // Get paginated data
     const [outgoingGoods] = await db.execute(
-      `SELECT * FROM outgoing_goods ${whereClause} ORDER BY date DESC LIMIT ? OFFSET ?`,
+      `SELECT * FROM outgoing_goods ${whereClause} ${orderClause} LIMIT ? OFFSET ?`,
       [...params, limit, offset]
     )
     
@@ -773,7 +878,7 @@ app.get('/api/damaged-goods', authenticateToken, async (req, res) => {
     
     // Get paginated data
     const [damagedGoods] = await db.execute(
-      `SELECT * FROM damaged_goods ${whereClause} ORDER BY date DESC LIMIT ? OFFSET ?`,
+      `SELECT * FROM damaged_goods ${whereClause} ORDER BY date DESC, id DESC LIMIT ? OFFSET ?`,
       [...params, limit, offset]
     )
     
@@ -903,13 +1008,13 @@ app.get('/api/reports', authenticateToken, async (req, res) => {
       data.stockReport = stockReport
     } else if (type === 'incoming') {
       const [incomingReport] = await db.execute(
-        'SELECT * FROM incoming_goods WHERE date BETWEEN ? AND ? ORDER BY date DESC',
+        'SELECT * FROM incoming_goods WHERE date BETWEEN ? AND ? ORDER BY date DESC, id DESC',
         [startDate, endDate]
       )
       data.incomingReport = incomingReport
     } else if (type === 'outgoing') {
       const [outgoingReport] = await db.execute(
-        'SELECT * FROM outgoing_goods WHERE date BETWEEN ? AND ? ORDER BY date DESC',
+        'SELECT * FROM outgoing_goods WHERE date BETWEEN ? AND ? ORDER BY date DESC, id DESC',
         [startDate, endDate]
       )
       data.outgoingReport = outgoingReport
@@ -965,7 +1070,7 @@ app.get('/api/orders', authenticateToken, async (req, res) => {
     
     // Get paginated data
     const [orders] = await db.execute(
-      `SELECT * FROM orders ${whereClause} ORDER BY date DESC LIMIT ? OFFSET ?`,
+      `SELECT * FROM orders ${whereClause} ORDER BY date DESC, id DESC LIMIT ? OFFSET ?`,
       [...params, limit, offset]
     )
     
@@ -1044,6 +1149,77 @@ app.delete('/api/orders/:id', authenticateToken, requireRole(['manager']), async
   }
 })
 
+// Orders Summary Routes
+app.get('/api/orders/summary', authenticateToken, async (req, res) => {
+  try {
+    const { page, limit, offset, search } = getPaginationParams(req)
+    const { startDate, endDate } = req.query
+    
+    let whereClause = ''
+    let params = []
+    let conditions = []
+    
+    if (search) {
+      conditions.push('(product_name LIKE ? OR product_code LIKE ? OR category LIKE ? OR brand LIKE ?)')
+      params.push(`%${search}%`, `%${search}%`, `%${search}%`, `%${search}%`)
+    }
+    
+    // Fix date filtering logic
+    if (startDate && endDate) {
+      conditions.push('DATE(date) BETWEEN ? AND ?')
+      params.push(startDate, endDate)
+    } else if (startDate) {
+      conditions.push('DATE(date) >= ?')
+      params.push(startDate)
+    } else if (endDate) {
+      conditions.push('DATE(date) <= ?')
+      params.push(endDate)
+    }
+    
+    if (conditions.length > 0) {
+      whereClause = 'WHERE ' + conditions.join(' AND ')
+    }
+    
+    // Get summary data grouped by product
+    const [summaryData] = await db.execute(`
+      SELECT 
+        product_code,
+        product_name,
+        category,
+        brand,
+        SUM(quantity) as total_quantity,
+        COUNT(*) as total_orders,
+        SUM(price * quantity) / SUM(quantity) as average_price
+      FROM orders 
+      ${whereClause}
+      GROUP BY product_code, product_name, category, brand
+      ORDER BY total_quantity DESC
+      LIMIT ? OFFSET ?
+    `, [...params, limit, offset])
+    
+    // Get total count of unique products
+    const [countResult] = await db.execute(`
+      SELECT COUNT(DISTINCT product_code) as total 
+      FROM orders 
+      ${whereClause}
+    `, params)
+    const total = countResult[0].total
+    
+    res.json({
+      data: summaryData,
+      pagination: {
+        page,
+        limit,
+        total,
+        totalPages: Math.ceil(total / limit)
+      }
+    })
+  } catch (error) {
+    console.error('Get orders summary error:', error)
+    res.status(500).json({ message: 'Server error' })
+  }
+})
+
 // Pembukuan Routes
 app.get('/api/pembukuan', authenticateToken, requireRole(['manager']), async (req, res) => {
   try {
@@ -1100,7 +1276,7 @@ app.get('/api/pembukuan', authenticateToken, requireRole(['manager']), async (re
       WHERE og.resi_number IS NOT NULL AND og.resi_number != ''
       ${whereClause}
       ${dateFilter}
-      ORDER BY og.date DESC, og.product_name
+      ORDER BY og.date DESC, og.id DESC, og.product_name
       LIMIT ? OFFSET ?
     `, [...dateParams, ...params, limit, offset])
     
@@ -1115,6 +1291,85 @@ app.get('/api/pembukuan', authenticateToken, requireRole(['manager']), async (re
     })
   } catch (error) {
     console.error('Get pembukuan error:', error)
+    res.status(500).json({ message: 'Server error' })
+  }
+})
+
+// Pembukuan Statistics endpoint
+app.get('/api/pembukuan/stats', authenticateToken, requireRole(['manager']), async (req, res) => {
+  try {
+    const { startDate, endDate } = req.query
+    
+    let dateFilter = ''
+    let params = []
+    
+    if (startDate && endDate) {
+      dateFilter = 'AND og.date BETWEEN ? AND ?'
+      params = [startDate, endDate]
+    }
+    
+    // Get comprehensive statistics from all data (not just current page)
+    const [statsResult] = await db.execute(`
+      SELECT 
+        COUNT(*) as total_transactions,
+        SUM(CASE WHEN margin > 0 THEN 1 ELSE 0 END) as profitable_transactions,
+        SUM(margin) as total_profit,
+        AVG(margin) as average_profit,
+        SUM(quantity) as total_quantity,
+        SUM(purchase_price * quantity) as total_purchase_value,
+        SUM(selling_price * quantity) as total_selling_value,
+        SUM(discount * quantity) as total_discount_value
+      FROM (
+        SELECT 
+          og.quantity,
+          COALESCE(og.purchase_price, 0) as purchase_price,
+          COALESCE(og.selling_price, 0) as selling_price,
+          COALESCE(og.discount, 0) as discount,
+          CASE 
+            WHEN og.selling_price > 0 AND og.purchase_price > 0 
+            THEN (og.selling_price - og.discount - og.purchase_price) * og.quantity
+            ELSE 0 
+          END as margin
+        FROM outgoing_goods og
+        WHERE og.resi_number IS NOT NULL AND og.resi_number != ''
+        ${dateFilter}
+      ) as pembukuan_data
+    `, params)
+    
+    const stats = statsResult[0]
+    
+    // Get product-level statistics
+    const [productStats] = await db.execute(`
+      SELECT 
+        og.product_code as code,
+        og.product_name as name,
+        SUM(CASE 
+          WHEN og.selling_price > 0 AND og.purchase_price > 0 
+          THEN (og.selling_price - og.discount - og.purchase_price) * og.quantity
+          ELSE 0 
+        END) as total_profit
+      FROM outgoing_goods og
+      WHERE og.resi_number IS NOT NULL AND og.resi_number != ''
+      ${dateFilter}
+      GROUP BY og.product_code, og.product_name
+      HAVING total_profit > 0
+      ORDER BY total_profit DESC
+      LIMIT 6
+    `, params)
+    
+    res.json({
+      totalTransactions: stats.total_transactions || 0,
+      profitableTransactions: stats.profitable_transactions || 0,
+      totalProfit: stats.total_profit || 0,
+      averageProfit: stats.average_profit || 0,
+      totalQuantity: stats.total_quantity || 0,
+      totalPurchaseValue: stats.total_purchase_value || 0,
+      totalSellingValue: stats.total_selling_value || 0,
+      totalDiscountValue: stats.total_discount_value || 0,
+      productProfits: productStats
+    })
+  } catch (error) {
+    console.error('Get pembukuan stats error:', error)
     res.status(500).json({ message: 'Server error' })
   }
 })

@@ -26,23 +26,54 @@ export function usePagination(fetchFunction, initialParams = {}) {
       const queryParams = { ...paramsRef.current, ...newParams }
       const response = await fetchFunctionRef.current(queryParams)
       
-      if (response.data) {
-        setData(response.data.items || response.data.data || response.data)
-        setPagination(response.data.pagination || {
-          page: 1,
-          limit: 10,
-          total: response.data.length || 0,
-          totalPages: 1
-        })
+      // Handle different response structures
+      let responseData, responsePagination
+      
+      if (response && response.data) {
+        // Check if response has nested data structure (API standard)
+        if (response.data.data && response.data.pagination) {
+          responseData = response.data.data
+          responsePagination = response.data.pagination
+        } else if (response.data.items && response.data.pagination) {
+          responseData = response.data.items
+          responsePagination = response.data.pagination
+        } else if (Array.isArray(response.data)) {
+          // Direct array response
+          responseData = response.data
+          responsePagination = {
+            page: 1,
+            limit: response.data.length,
+            total: response.data.length,
+            totalPages: 1
+          }
+        } else {
+          // Fallback: assume response.data is the data
+          responseData = response.data
+          responsePagination = {
+            page: 1,
+            limit: 10,
+            total: response.data.length || 0,
+            totalPages: 1
+          }
+        }
       } else {
-        setData(response)
-        setPagination({
+        // Direct response (fallback)
+        responseData = response || []
+        responsePagination = {
           page: 1,
           limit: 10,
           total: response.length || 0,
           totalPages: 1
-        })
+        }
       }
+      
+      setData(responseData || [])
+      setPagination(responsePagination || {
+        page: 1,
+        limit: 10,
+        total: 0,
+        totalPages: 0
+      })
     } catch (error) {
       console.error('Error fetching data:', error)
       setData([])

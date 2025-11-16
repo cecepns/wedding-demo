@@ -341,7 +341,13 @@ export default function DamagedGoods() {
                   type="number"
                   className="form-input"
                   value={formData.stock}
-                  onChange={(e) => setFormData({...formData, stock: e.target.value})}
+                  onChange={(e) => {
+                    const value = e.target.value
+                    // Prevent 0 and negative values
+                    if (value === '' || (parseInt(value) > 0)) {
+                      setFormData({...formData, stock: value})
+                    }
+                  }}
                   required
                   min="1"
                 />
@@ -486,13 +492,40 @@ export default function DamagedGoods() {
             </div>
 
             {/* Pagination */}
-            <Pagination
-              currentPage={pagination.page}
-              totalPages={pagination.totalPages}
-              totalItems={pagination.total}
-              itemsPerPage={pagination.limit}
-              onPageChange={goToPage}
-            />
+            <div className="mt-4 flex flex-col sm:flex-row justify-between items-center gap-4">
+              {/* Items per page selector */}
+              <div className="flex items-center gap-2">
+                <label className="text-sm text-gray-600">Tampilkan:</label>
+                <select
+                  className="form-select text-sm"
+                  value={pagination.limit}
+                  onChange={(e) => {
+                    updateParams({
+                      limit: parseInt(e.target.value),
+                      page: 1,
+                    });
+                  }}
+                >
+                  <option value={10}>10</option>
+                  <option value={20}>20</option>
+                  <option value={50}>50</option>
+                </select>
+                <span className="text-sm text-gray-600">
+                  dari {pagination.total} item
+                </span>
+              </div>
+
+              {/* Pagination */}
+              {pagination.totalPages > 1 && (
+                <Pagination
+                  currentPage={pagination.page}
+                  totalPages={pagination.totalPages}
+                  totalItems={pagination.total}
+                  itemsPerPage={pagination.limit}
+                  onPageChange={goToPage}
+                />
+              )}
+            </div>
           </>
         )}
       </div>

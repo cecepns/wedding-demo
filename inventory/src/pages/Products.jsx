@@ -10,6 +10,7 @@ export default function Products() {
   const [showForm, setShowForm] = useState(false)
   const [editingProduct, setEditingProduct] = useState(null)
   const [searchTerm, setSearchTerm] = useState('')
+  const [sortBy, setSortBy] = useState('brand')
   const [formData, setFormData] = useState({
     barcode_id: '',
     code: '',
@@ -22,7 +23,12 @@ export default function Products() {
 
   // Fetch function for pagination
   const fetchProducts = async (params) => {
-    const response = await api.get('/api/products', { params })
+    const response = await api.get('/api/products', { 
+      params: {
+        ...params,
+        sort: sortBy
+      }
+    })
     return response
   }
 
@@ -44,6 +50,11 @@ export default function Products() {
 
     return () => clearTimeout(timeoutId)
   }, [searchTerm])
+
+  // Update sort params
+  useEffect(() => {
+    refresh()
+  }, [sortBy])
 
   const handleSubmit = async (e) => {
     e.preventDefault()
@@ -118,17 +129,35 @@ export default function Products() {
         </button>
       </div>
 
-      {/* Search */}
+      {/* Search and Sort */}
       <div className="card">
-        <div className="relative">
-          <FiSearch className="absolute left-3 top-3 text-gray-400" size={20} />
-          <input
-            type="text"
-            placeholder="Cari produk..."
-            className="form-input pl-10"
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-          />
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="relative">
+            <FiSearch className="absolute left-3 top-3 text-gray-400" size={20} />
+            <input
+              type="text"
+              placeholder="Cari produk..."
+              className="form-input pl-10"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+            />
+          </div>
+          
+          <div>
+            <label className="form-label">Urutkan berdasarkan</label>
+            <select
+              className="form-select"
+              value={sortBy}
+              onChange={(e) => setSortBy(e.target.value)}
+            >
+              {/* <option value="name">Nama A-Z</option> */}
+              {/* <option value="name_desc">Nama Z-A</option> */}
+              <option value="brand">Merk A-Z</option>
+              <option value="brand_desc">Merk Z-A</option>
+              {/* <option value="date">Tanggal Terlama</option> */}
+              <option value="date_desc">Tanggal Terbaru</option>
+            </select>
+          </div>
         </div>
       </div>
 
@@ -180,8 +209,15 @@ export default function Products() {
                   type="number"
                   className="form-input"
                   value={formData.initial_stock}
-                  onChange={(e) => setFormData({...formData, initial_stock: e.target.value})}
+                  onChange={(e) => {
+                    const value = e.target.value
+                    // Prevent negative values (allow 0 for initial stock)
+                    if (value === '' || (parseInt(value) >= 0)) {
+                      setFormData({...formData, initial_stock: value})
+                    }
+                  }}
                   required
+                  min="0"
                 />
               </div>
               
@@ -298,13 +334,40 @@ export default function Products() {
             </div>
 
             {/* Pagination */}
-            <Pagination
-              currentPage={pagination.page}
-              totalPages={pagination.totalPages}
-              totalItems={pagination.total}
-              itemsPerPage={pagination.limit}
-              onPageChange={goToPage}
-            />
+            <div className="mt-4 flex flex-col sm:flex-row justify-between items-center gap-4">
+              {/* Items per page selector */}
+              <div className="flex items-center gap-2">
+                <label className="text-sm text-gray-600">Tampilkan:</label>
+                <select
+                  className="form-select text-sm"
+                  value={pagination.limit}
+                  onChange={(e) => {
+                    updateParams({
+                      limit: parseInt(e.target.value),
+                      page: 1,
+                    });
+                  }}
+                >
+                  <option value={10}>10</option>
+                  <option value={20}>20</option>
+                  <option value={50}>50</option>
+                </select>
+                <span className="text-sm text-gray-600">
+                  dari {pagination.total} item
+                </span>
+              </div>
+
+              {/* Pagination */}
+              {pagination.totalPages > 1 && (
+                <Pagination
+                  currentPage={pagination.page}
+                  totalPages={pagination.totalPages}
+                  totalItems={pagination.total}
+                  itemsPerPage={pagination.limit}
+                  onPageChange={goToPage}
+                />
+              )}
+            </div>
           </>
         )}
       </div>

@@ -12,6 +12,7 @@ export default function IncomingGoods() {
   const [showForm, setShowForm] = useState(false)
   const [editingItem, setEditingItem] = useState(null)
   const [searchTerm, setSearchTerm] = useState('')
+  const [sortBy, setSortBy] = useState('date') // Default sort by date
   const [formData, setFormData] = useState({
     product_code: '',
     product_name: '',
@@ -79,11 +80,17 @@ export default function IncomingGoods() {
   // Update search params
   useEffect(() => {
     const timeoutId = setTimeout(() => {
-      updateParams({ search: searchTerm })
+      const params = { search: searchTerm }
+      if (sortBy === 'brand') {
+        params.sort = 'brand'
+      } else if (sortBy === 'brand_desc') {
+        params.sort = 'brand_desc'
+      }
+      updateParams(params)
     }, 500) // Debounce search
 
     return () => clearTimeout(timeoutId)
-  }, [searchTerm])
+  }, [searchTerm, sortBy])
 
   // Function to check for duplicate resi numbers with debouncing
   const checkDuplicateResi = async (resiNumber, excludeId = null) => {
@@ -152,6 +159,25 @@ export default function IncomingGoods() {
         brand: ''
       })
     }
+  }
+
+  // Function to get today's date in YYYY-MM-DD format
+  const getTodayDate = () => {
+    const today = new Date()
+    const year = today.getFullYear()
+    const month = String(today.getMonth() + 1).padStart(2, '0')
+    const day = String(today.getDate()).padStart(2, '0')
+    return `${year}-${month}-${day}`
+  }
+
+  // Function to check if date is in the past
+  const isPastDate = (dateString) => {
+    if (!dateString) return false
+    const inputDate = new Date(dateString)
+    const today = new Date()
+    today.setHours(0, 0, 0, 0)
+    inputDate.setHours(0, 0, 0, 0)
+    return inputDate < today
   }
 
   // Function to check if item can be edited (only managers)
@@ -229,6 +255,12 @@ export default function IncomingGoods() {
   const handleSubmit = async (e) => {
     e.preventDefault()
     
+    // Validate quantity
+    if (!formData.quantity || parseInt(formData.quantity) <= 0) {
+      showError('Jumlah harus lebih dari 0')
+      return
+    }
+    
     // Check for duplicate resi number (exclude current item if editing)
     const isDuplicate = await checkDuplicateResi(formData.resi_number, editingItem?.id)
     if (isDuplicate) {
@@ -285,17 +317,31 @@ export default function IncomingGoods() {
         </button>
       </div>
 
-      {/* Search */}
+      {/* Search and Sort */}
       <div className="card">
-        <div className="relative">
-          <FiSearch className="absolute left-3 top-3 text-gray-400" size={20} />
-          <input
-            type="text"
-            placeholder="Cari barang masuk..."
-            className="form-input pl-10"
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-          />
+        <div className="flex flex-col sm:flex-row gap-4">
+          <div className="relative flex-1">
+            <FiSearch className="absolute left-3 top-3 text-gray-400" size={20} />
+            <input
+              type="text"
+              placeholder="Cari barang masuk..."
+              className="form-input pl-10"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+            />
+          </div>
+          <div className="flex items-center gap-2">
+            <label className="text-sm text-gray-600 whitespace-nowrap">Urutkan:</label>
+            <select
+              className="form-select"
+              value={sortBy}
+              onChange={(e) => setSortBy(e.target.value)}
+            >
+              <option value="date">Tanggal (Terbaru)</option>
+              <option value="brand">Merek (A-Z)</option>
+              <option value="brand_desc">Merek (Z-A)</option>
+            </select>
+          </div>
         </div>
       </div>
 
@@ -312,9 +358,17 @@ export default function IncomingGoods() {
                 <label className="form-label">Tanggal</label>
                 <input
                   type="date"
-                  className="form-input"
+                  className={`form-input ${hasRole('admin') && isPastDate(formData.date) ? 'border-red-500 bg-red-50' : ''}`}
                   value={formData.date}
-                  onChange={(e) => setFormData({...formData, date: e.target.value})}
+                  onChange={(e) => {
+                    const selectedDate = e.target.value
+                    if (hasRole('admin') && isPastDate(selectedDate)) {
+                      showError('Tidak dapat memasukkan tanggal kemarin atau tanggal lampau')
+                      return
+                    }
+                    setFormData({...formData, date: selectedDate})
+                  }}
+                  min={hasRole('admin') ? getTodayDate() : undefined}
                   required
                 />
               </div>
@@ -402,7 +456,14 @@ export default function IncomingGoods() {
                   type="number"
                   className="form-input"
                   value={formData.quantity}
-                  onChange={(e) => setFormData({...formData, quantity: e.target.value})}
+                  onChange={(e) => {
+                    const value = e.target.value
+                    // Prevent 0 and negative values
+                    if (value === '' || (parseInt(value) > 0)) {
+                      setFormData({...formData, quantity: value})
+                    }
+                  }}
+                  min="1"
                   required
                 />
               </div>
@@ -541,13 +602,40 @@ export default function IncomingGoods() {
             </div>
 
             {/* Pagination */}
-            <Pagination
-              currentPage={pagination.page}
-              totalPages={pagination.totalPages}
-              totalItems={pagination.total}
-              itemsPerPage={pagination.limit}
-              onPageChange={goToPage}
-            />
+            <div className="mt-4 flex flex-col sm:flex-row justify-between items-center gap-4">
+              {/* Items per page selector */}
+              <div className="flex items-center gap-2">
+                <label className="text-sm text-gray-600">Tampilkan:</label>
+                <select
+                  className="form-select text-sm"
+                  value={pagination.limit}
+                  onChange={(e) => {
+                    updateParams({
+                      limit: parseInt(e.target.value),
+                      page: 1,
+                    });
+                  }}
+                >
+                  <option value={10}>10</option>
+                  <option value={20}>20</option>
+                  <option value={50}>50</option>
+                </select>
+                <span className="text-sm text-gray-600">
+                  dari {pagination.total} item
+                </span>
+              </div>
+
+              {/* Pagination */}
+              {pagination.totalPages > 1 && (
+                <Pagination
+                  currentPage={pagination.page}
+                  totalPages={pagination.totalPages}
+                  totalItems={pagination.total}
+                  itemsPerPage={pagination.limit}
+                  onPageChange={goToPage}
+                />
+              )}
+            </div>
           </>
         )}
       </div>

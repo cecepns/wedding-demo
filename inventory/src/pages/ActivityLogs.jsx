@@ -156,7 +156,7 @@ export default function ActivityLogs() {
                 <div key={log.id} className="border-l-4 border-primary-500 pl-4 py-3 bg-gray-50 rounded-r-lg">
                   <div className="flex items-start justify-between">
                     <div className="flex-1">
-                      <div className="flex items-center space-x-3 mb-2">
+                      <div className="flex items-center space-x-3 mb-2 flex-wrap">
                         <span className={`px-2 py-1 rounded-full text-xs font-medium ${getActionColor(log.action)}`}>
                           {getActionLabel(log.action)}
                         </span>
@@ -185,13 +185,40 @@ export default function ActivityLogs() {
             </div>
 
             {/* Pagination */}
-            <Pagination
-              currentPage={pagination.page}
-              totalPages={pagination.totalPages}
-              totalItems={pagination.total}
-              itemsPerPage={pagination.limit}
-              onPageChange={goToPage}
-            />
+            <div className="mt-4 flex flex-col sm:flex-row justify-between items-center gap-4">
+              {/* Items per page selector */}
+              <div className="flex items-center gap-2">
+                <label className="text-sm text-gray-600">Tampilkan:</label>
+                <select
+                  className="form-select text-sm"
+                  value={pagination.limit}
+                  onChange={(e) => {
+                    updateParams({
+                      limit: parseInt(e.target.value),
+                      page: 1,
+                    });
+                  }}
+                >
+                  <option value={10}>10</option>
+                  <option value={20}>20</option>
+                  <option value={50}>50</option>
+                </select>
+                <span className="text-sm text-gray-600">
+                  dari {pagination.total} item
+                </span>
+              </div>
+
+              {/* Pagination */}
+              {pagination.totalPages > 1 && (
+                <Pagination
+                  currentPage={pagination.page}
+                  totalPages={pagination.totalPages}
+                  totalItems={pagination.total}
+                  itemsPerPage={pagination.limit}
+                  onPageChange={goToPage}
+                />
+              )}
+            </div>
           </>
         )}
       </div>
