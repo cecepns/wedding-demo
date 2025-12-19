@@ -437,6 +437,89 @@ app.delete('/api/products/:id', authenticateToken, requireRole(['manager']), asy
   }
 })
 
+// Bulk insert products from orders
+app.post('/api/products/bulk-insert', authenticateToken, requireRole(['manager']), async (req, res) => {
+  try {
+    const { orderIds } = req.body
+    
+    if (!orderIds || !Array.isArray(orderIds) || orderIds.length === 0) {
+      return res.status(400).json({ message: 'Order IDs are required' })
+    }
+    
+    // Get orders data
+    const placeholders = orderIds.map(() => '?').join(',')
+    const [orders] = await db.execute(
+      `SELECT * FROM orders WHERE id IN (${placeholders})`,
+      orderIds
+    )
+    
+    if (orders.length === 0) {
+      return res.status(404).json({ message: 'No orders found' })
+    }
+    
+    let successCount = 0
+    let errorCount = 0
+    const errors = []
+    
+    // Insert each order as a product
+    for (const order of orders) {
+      try {
+        // Check if product code already exists
+        const [existing] = await db.execute('SELECT id FROM products WHERE code = ?', [order.product_code])
+        
+        if (existing.length > 0) {
+          errorCount++
+          errors.push({
+            code: order.product_code,
+            name: order.product_name,
+            reason: 'Kode barang sudah ada'
+          })
+          continue
+        }
+        
+        // Generate barcode_id from product_code
+        const barcode_id = order.product_code || `BRK-${Date.now()}-${Math.floor(Math.random() * 1000)}`
+        
+        // Insert product
+        await db.execute(
+          'INSERT INTO products (barcode_id, code, name, initial_stock, current_stock, category, brand) VALUES (?, ?, ?, ?, ?, ?, ?)',
+          [
+            barcode_id,
+            order.product_code,
+            order.product_name,
+            order.quantity,
+            order.quantity,
+            order.category,
+            order.brand
+          ]
+        )
+        
+        successCount++
+        
+        // Log activity
+        await logActivity(req.user.id, 'BULK_INSERT_PRODUCT', `Bulk inserted product from order: ${order.product_name} (${order.product_code})`)
+      } catch (error) {
+        errorCount++
+        errors.push({
+          code: order.product_code,
+          name: order.product_name,
+          reason: error.message
+        })
+      }
+    }
+    
+    res.json({
+      message: `Bulk insert completed: ${successCount} success, ${errorCount} failed`,
+      successCount,
+      errorCount,
+      errors: errors.length > 0 ? errors : undefined
+    })
+  } catch (error) {
+    console.error('Bulk insert products error:', error)
+    res.status(500).json({ message: 'Server error' })
+  }
+})
+
 // Incoming Goods Routes
 app.get('/api/incoming-goods', authenticateToken, async (req, res) => {
   try {
@@ -1189,7 +1272,9 @@ app.get('/api/orders/summary', authenticateToken, async (req, res) => {
         brand,
         SUM(quantity) as total_quantity,
         COUNT(*) as total_orders,
-        SUM(price * quantity) / SUM(quantity) as average_price
+        SUM(price * quantity) / SUM(quantity) as average_price,
+        MIN(date) as first_order_date,
+        MAX(date) as last_order_date
       FROM orders 
       ${whereClause}
       GROUP BY product_code, product_name, category, brand
