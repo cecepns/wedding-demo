@@ -82,7 +82,7 @@ const AdminLogin = () => {
                 onChange={handleInputChange}
                 required
                 className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
-                placeholder="admin@userwedding.com"
+                placeholder="demo@admin.com"
               />
             </div>
 
@@ -111,7 +111,7 @@ const AdminLogin = () => {
           <div className="mt-6 text-center">
             <p className="text-sm text-gray-500">
               Kredensial demo:<br />
-              Email: admin@userwedding.com<br />
+              Email: demo@admin.com<br />
               Password: admin123
             </p>
           </div>
