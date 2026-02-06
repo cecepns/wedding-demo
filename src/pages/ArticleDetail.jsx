@@ -51,7 +51,7 @@ const ArticleDetail = () => {
   return (
     <>
       <Helmet>
-        <title>{article.title} - Wedding App</title>
+        <title>{article.title} - Website Owner</title>
         <meta name="description" content={article.excerpt || article.content.substring(0, 160)} />
       </Helmet>
 

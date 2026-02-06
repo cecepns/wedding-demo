@@ -73,7 +73,7 @@ const Gallery = () => {
   return (
     <>
       <Helmet>
-        <title>Galeri Pernikahan - Wedding App</title>
+        <title>Galeri Pernikahan - Website Owner</title>
         <meta name="description" content="Jelajahi galeri pernikahan kami yang menakjubkan menampilkan upacara, resepsi, dan dekorasi yang indah." />
       </Helmet>
 

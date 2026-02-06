@@ -76,10 +76,10 @@ const Home = () => {
   return (
     <>
       <Helmet>
-        <title>Wedding App - Hari Pernikahan Sempurna Anda Menanti</title>
+        <title>Website Owner - Hari Pernikahan Sempurna Anda Menanti</title>
         <meta
           name="description"
-          content="Ciptakan momen magis dengan Wedding App. Layanan perencanaan pernikahan profesional untuk membuat hari spesial Anda tak terlupakan."
+          content="Ciptakan momen magis dengan Website Owner. Layanan perencanaan pernikahan profesional untuk membuat hari spesial Anda tak terlupakan."
         />
         <meta
           name="keywords"
@@ -139,7 +139,7 @@ const Home = () => {
         <div className="container-custom">
           <div className="text-center mb-16" data-aos="fade-up">
             <h2 className=" text-4xl lg:text-5xl font-bold text-gray-800 mb-6">
-              Mengapa Memilih Wedding App?
+              Mengapa Memilih Website Owner?
             </h2>
             <p className="text-xl text-gray-600 max-w-3xl mx-auto">
               Kami membawa pengalaman bertahun-tahun dan passion untuk membuat

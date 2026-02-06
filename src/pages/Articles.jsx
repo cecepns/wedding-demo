@@ -22,7 +22,7 @@ const Articles = () => {
   return (
     <>
       <Helmet>
-        <title>Artikel & Tips Pernikahan - Wedding App</title>
+        <title>Artikel & Tips Pernikahan - Website Owner</title>
         <meta name="description" content="Baca tips perencanaan pernikahan terbaru, tren, dan artikel inspirasi kami." />
       </Helmet>
 

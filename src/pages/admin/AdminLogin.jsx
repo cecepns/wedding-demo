@@ -52,8 +52,8 @@ const AdminLogin = () => {
   return (
     <>
       <Helmet>
-        <title>Admin Login - Wedding App</title>
-        <meta name="description" content="Portal login admin untuk sistem manajemen Wedding App." />
+        <title>Admin Login - Website Owner</title>
+        <meta name="description" content="Portal login admin untuk sistem manajemen Website Owner." />
       </Helmet>
 
       <div className="min-h-screen gradient-bg flex items-center justify-center px-4">

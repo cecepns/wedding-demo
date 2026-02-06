@@ -49,7 +49,7 @@ const Services = () => {
   return (
     <>
       <Helmet>
-        <title>Wedding Package - Wedding App</title>
+        <title>Wedding Package - Website Owner</title>
         <meta
           name="description"
           content="Jelajahi paket pernikahan komprehensif kami termasuk perencanaan, dekorasi, fotografi, dan lainnya."

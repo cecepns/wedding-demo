@@ -138,7 +138,7 @@ const ServiceDetail = () => {
   return (
     <>
       <Helmet>
-        <title>{service.name} - Wedding App</title>
+        <title>{service.name} - Website Owner</title>
         <meta name="description" content={service.description} />
       </Helmet>
 
@@ -431,7 +431,7 @@ const PaymentInstructionsModal = ({ orderData, onClose }) => {
   //   // Company header
   //   doc.setFontSize(16);
   //   doc.setFont('helvetica', 'bold');
-  //   doc.text('Wedding App Organizer', 20, 20);
+  //   doc.text('Website Owner Organizer', 20, 20);
     
   //   // Company details
   //   doc.setFontSize(10);

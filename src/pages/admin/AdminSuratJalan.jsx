@@ -73,7 +73,7 @@ const AdminSuratJalan = () => {
     dekorasi_image: "",
     warna_kain: "",
     ukuran_tenda: "",
-    vendor_name: "Wedding App Organizer",
+    vendor_name: "Website Owner Organizer",
     notes: "",
   });
 
@@ -311,7 +311,7 @@ const AdminSuratJalan = () => {
         dekorasi_image: item.dekorasi_image || "",
         warna_kain: item.warna_kain || "",
         ukuran_tenda: item.ukuran_tenda || "",
-        vendor_name: item.vendor_name || "Wedding App Organizer",
+        vendor_name: item.vendor_name || "Website Owner Organizer",
         notes: item.notes || "",
       });
     } else {
@@ -329,7 +329,7 @@ const AdminSuratJalan = () => {
         dekorasi_image: "",
         warna_kain: "",
         ukuran_tenda: "",
-        vendor_name: "Wedding App Organizer",
+        vendor_name: "Website Owner Organizer",
         notes: "",
       });
       // Load initial order options when opening modal
@@ -567,7 +567,7 @@ const AdminSuratJalan = () => {
       // Vendor name
       doc.setFontSize(12);
       doc.setFont("helvetica", "bold");
-      doc.text(item.vendor_name || "Wedding App Organizer", 20, 35);
+      doc.text(item.vendor_name || "Website Owner Organizer", 20, 35);
 
       // Nomor surat jalan
       doc.setFontSize(10);
@@ -1088,7 +1088,7 @@ const AdminSuratJalan = () => {
                         <div className="text-sm text-gray-900">{item.package_name}</div>
                       </td>
                       <td className="px-6 py-4">
-                        <div className="text-sm text-gray-900">{item.vendor_name || "Wedding App Organizer"}</div>
+                        <div className="text-sm text-gray-900">{item.vendor_name || "Website Owner Organizer"}</div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="flex items-center gap-2">
@@ -1486,7 +1486,7 @@ const AdminSuratJalan = () => {
                       <div>
                         <span className="font-medium text-gray-700">Vendor:</span>
                         <p className="text-gray-900">
-                          {selectedItem.vendor_name || "Wedding App Organizer"}
+                          {selectedItem.vendor_name || "Website Owner Organizer"}
                         </p>
                       </div>
                     </div>

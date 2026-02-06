@@ -436,7 +436,7 @@ const AdminOrders = () => {
     // Company header
     doc.setFontSize(16);
     doc.setFont("helvetica", "bold");
-    doc.text("Wedding App Organizer", 20, 20);
+    doc.text("Website Owner Organizer", 20, 20);
 
     // Company details
     doc.setFontSize(10);
@@ -616,7 +616,7 @@ const AdminOrders = () => {
       item.bank_account_number ||
       "1234567890";
     const bankAccountName =
-      selectedBank?.name || item.bank_account_name || "Wedding App Organizer";
+      selectedBank?.name || item.bank_account_name || "Website Owner Organizer";
     doc.text(`Nomor Rekening: ${bankAccountNumber}`, 20, currentY + 75);
     doc.text(`Atas Nama: ${bankAccountName}`, 20, currentY + 82);
 

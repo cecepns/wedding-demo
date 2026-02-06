@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
+import logo from '../assets/logo.jpeg';
 
 const AdminLayout = ({ children }) => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
@@ -44,10 +45,10 @@ const AdminLayout = ({ children }) => {
         {/* Header - Fixed at top */}
         <div className="flex items-center justify-center h-20 px-4 bg-gradient-to-r from-primary-600 to-secondary-600 flex-shrink-0">
           <Link to="/" className="flex items-center space-x-3">
-            <div className="w-8 h-8 bg-white rounded-full flex items-center justify-center">
-              <span className="text-primary-600 font-bold">W</span>
+            <div className="w-14 h-14 bg-white rounded-full overflow-hidden flex items-center justify-center">
+              <img src={logo} alt="Website Owner Logo" className="w-full h-full object-contain" />
             </div>
-            <span className=" text-xl font-bold text-white">Wedding App</span>
+            <span className=" text-xl font-bold text-white">Website Owner</span>
           </Link>
         </div>
 

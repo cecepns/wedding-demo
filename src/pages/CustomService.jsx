@@ -514,7 +514,7 @@ const CustomService = () => {
   return (
     <>
       <Helmet>
-        <title>Layanan Kustom - Wedding App</title>
+        <title>Layanan Kustom - Website Owner</title>
         <meta
           name="description"
           content="Buat layanan pernikahan kustom sesuai kebutuhan Anda. Pilih layanan yang Anda inginkan dan kami akan menyesuaikan dengan budget dan preferensi Anda."

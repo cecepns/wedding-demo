@@ -54,8 +54,8 @@ const About = () => {
   return (
     <>
       <Helmet>
-        <title>Tentang Kami - Wedding App</title>
-        <meta name="description" content="Pelajari tentang tim Wedding App dan misi kami untuk menciptakan perayaan pernikahan yang sempurna." />
+        <title>Tentang Kami - Website Owner</title>
+        <meta name="description" content="Pelajari tentang tim Website Owner dan misi kami untuk menciptakan perayaan pernikahan yang sempurna." />
       </Helmet>
 
       <div className="pt-20">
