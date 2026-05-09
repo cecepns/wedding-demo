@@ -20,6 +20,7 @@ import Select from "react-select";
 import AdminLayout from "../../components/AdminLayout";
 import { formatDate, toLocalDate, toDateOnlyString } from "../../utils/formatters";
 import jsPDF from "jspdf";
+import QRCode from "qrcode";
 
 const API_BASE = "https://api-inventory.isavralabel.com/wedding-app";
 function imageUrl(value) {
@@ -27,6 +28,44 @@ function imageUrl(value) {
   if (value.startsWith("http")) return value;
   return `${API_BASE}/uploads-weddingsapp/${value}`;
 }
+
+/** Pratinjau QR di modal detail (link sama dengan yang di-PDF) */
+// eslint-disable-next-line react/prop-types -- local helper; `url` = maps link
+const GoogleMapsVendorQr = ({ url }) => {
+  const [dataUrl, setDataUrl] = useState(null);
+  useEffect(() => {
+    const u = (url || "").trim();
+    if (!u) {
+      setDataUrl(null);
+      return;
+    }
+    let cancelled = false;
+    QRCode.toDataURL(u, { width: 200, margin: 1, errorCorrectionLevel: "M" })
+      .then((d) => {
+        if (!cancelled) setDataUrl(d);
+      })
+      .catch(() => {
+        if (!cancelled) setDataUrl(null);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [url]);
+  if (!(url || "").trim()) return null;
+  return (
+    <div className="mt-1">
+      {dataUrl ? (
+        <img
+          src={dataUrl}
+          alt="QR Google Maps"
+          className="w-36 h-36 border border-gray-200 rounded-lg bg-white p-1"
+        />
+      ) : (
+        <p className="text-xs text-gray-500">Memuat QR…</p>
+      )}
+    </div>
+  );
+};
 
 const AdminSuratJalan = () => {
   const [suratJalanList, setSuratJalanList] = useState([]);
@@ -45,7 +84,7 @@ const AdminSuratJalan = () => {
   const [selectedOrder, setSelectedOrder] = useState(null);
   const [orderOptions, setOrderOptions] = useState([]);
   const [isLoadingOrders, setIsLoadingOrders] = useState(false);
-  const [viewMode, setViewMode] = useState("table");
+  const [viewMode, setViewMode] = useState("calendar");
   const [searchInput, setSearchInput] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
   const [calendarMonth, setCalendarMonth] = useState(new Date());
@@ -63,6 +102,7 @@ const AdminSuratJalan = () => {
 
   const [formData, setFormData] = useState({
     order_id: "",
+    custom_request_id: "",
     client_name: "",
     client_phone: "",
     client_address: "",
@@ -73,7 +113,10 @@ const AdminSuratJalan = () => {
     dekorasi_image: "",
     warna_kain: "",
     ukuran_tenda: "",
-    vendor_name: "Website Owner Organizer",
+    piring: "",
+    nama_pasangan: "",
+    vendor_name: "User Wedding Organizer",
+    maps_link: "",
     notes: "",
   });
 
@@ -196,6 +239,16 @@ const AdminSuratJalan = () => {
     acc[key].push(item);
     return acc;
   }, {});
+  const totalUniqueCalendarClients = new Set(
+    calendarSuratJalan
+      .map((item) =>
+        (item.client_phone || "")
+          .toString()
+          .replace(/\D/g, "")
+          .trim()
+      )
+      .filter(Boolean)
+  ).size;
 
   const uploadTargetRef = useRef(null);
 
@@ -246,13 +299,31 @@ const AdminSuratJalan = () => {
           },
         }
       );
-      const orders = await response.json();
-      
-      const options = orders.map(order => ({
-        value: order.id,
-        label: `#${order.id} - ${order.name} - ${order.service_name} (${order.wedding_date ? formatDate(order.wedding_date) : 'Tanggal tidak tersedia'})`,
-        order: order
-      }));
+      const data = await response.json();
+      const rows = Array.isArray(data) ? data : [];
+
+      const options = rows.map((row) => {
+        const isCustom = row.order_source === "custom_request";
+        const datePart = row.wedding_date
+          ? formatDate(row.wedding_date)
+          : "Tanggal tidak tersedia";
+        const svc = row.service_name || (isCustom ? "Layanan custom" : "-");
+        const prefix = isCustom ? "C" : "";
+        const tag = isCustom ? "Custom" : "Pesan biasa";
+        return {
+          value: isCustom ? `custom:${row.id}` : `order:${row.id}`,
+          label: `#${prefix}${row.id} — ${row.name || "-"} — ${svc} (${tag}) (${datePart})`,
+          order: {
+            id: row.id,
+            source: isCustom ? "custom_request" : "order",
+            name: row.name,
+            phone: row.phone,
+            address: row.address || "",
+            wedding_date: row.wedding_date,
+            service_name: svc,
+          },
+        };
+      });
       
       setOrderOptions(options);
       return options;
@@ -265,9 +336,10 @@ const AdminSuratJalan = () => {
     }
   };
 
-  const handleSearchOrders = (inputValue) => {
+  const handleSearchOrders = (inputValue, meta) => {
+    if (meta?.action && meta.action !== "input-change") return;
     if (!inputValue || inputValue.length < 2) {
-      loadOrderOptions();
+      loadOrderOptions("");
       return;
     }
     loadOrderOptions(inputValue);
@@ -278,21 +350,40 @@ const AdminSuratJalan = () => {
   };
 
   const handleOpenModal = async (item = null) => {
+    // Selalu refresh opsi pesanan saat modal dibuka,
+    // supaya data terbaru tetap bisa dipilih saat edit.
+    await loadOrderOptions();
+
     if (item) {
       setEditingItem(item);
-      // If editing, create the selected option from item data
-      if (item.order_id) {
+      if (item.custom_request_id) {
         const selectedOption = {
-          value: item.order_id,
-          label: `#${item.order_id} - ${item.client_name} - ${item.package_name}`,
+          value: `custom:${item.custom_request_id}`,
+          label: `#C${item.custom_request_id} — ${item.client_name} — ${item.package_name} (Custom)`,
           order: {
-            id: item.order_id,
+            id: item.custom_request_id,
+            source: "custom_request",
             name: item.client_name,
             phone: item.client_phone,
             address: item.client_address,
             wedding_date: toDateOnlyString(item.wedding_date) || item.wedding_date,
-            service_name: item.package_name
-          }
+            service_name: item.package_name,
+          },
+        };
+        setSelectedOrder(selectedOption);
+      } else if (item.order_id) {
+        const selectedOption = {
+          value: `order:${item.order_id}`,
+          label: `#${item.order_id} — ${item.client_name} — ${item.package_name}`,
+          order: {
+            id: item.order_id,
+            source: "order",
+            name: item.client_name,
+            phone: item.client_phone,
+            address: item.client_address,
+            wedding_date: toDateOnlyString(item.wedding_date) || item.wedding_date,
+            service_name: item.package_name,
+          },
         };
         setSelectedOrder(selectedOption);
       } else {
@@ -301,6 +392,7 @@ const AdminSuratJalan = () => {
       
       setFormData({
         order_id: item.order_id || "",
+        custom_request_id: item.custom_request_id || "",
         client_name: item.client_name || "",
         client_phone: item.client_phone || "",
         client_address: item.client_address || "",
@@ -311,7 +403,10 @@ const AdminSuratJalan = () => {
         dekorasi_image: item.dekorasi_image || "",
         warna_kain: item.warna_kain || "",
         ukuran_tenda: item.ukuran_tenda || "",
-        vendor_name: item.vendor_name || "Website Owner Organizer",
+        piring: item.piring || "",
+        nama_pasangan: item.nama_pasangan || "",
+        vendor_name: item.vendor_name || "User Wedding Organizer",
+        maps_link: item.maps_link || "",
         notes: item.notes || "",
       });
     } else {
@@ -319,6 +414,7 @@ const AdminSuratJalan = () => {
       setSelectedOrder(null);
       setFormData({
         order_id: "",
+        custom_request_id: "",
         client_name: "",
         client_phone: "",
         client_address: "",
@@ -329,11 +425,12 @@ const AdminSuratJalan = () => {
         dekorasi_image: "",
         warna_kain: "",
         ukuran_tenda: "",
-        vendor_name: "Website Owner Organizer",
+        piring: "",
+        nama_pasangan: "",
+        vendor_name: "User Wedding Organizer",
+        maps_link: "",
         notes: "",
       });
-      // Load initial order options when opening modal
-      await loadOrderOptions();
     }
     setShowModal(true);
   };
@@ -344,6 +441,7 @@ const AdminSuratJalan = () => {
       setFormData(prev => ({
         ...prev,
         order_id: "",
+        custom_request_id: "",
         client_name: "",
         client_phone: "",
         client_address: "",
@@ -354,10 +452,12 @@ const AdminSuratJalan = () => {
     }
 
     const order = selectedOption.order;
+    const isCustom = order.source === "custom_request";
     setSelectedOrder(selectedOption);
     setFormData(prev => ({
       ...prev,
-      order_id: order.id,
+      order_id: isCustom ? "" : String(order.id),
+      custom_request_id: isCustom ? String(order.id) : "",
       client_name: order.name || "",
       client_phone: order.phone || "",
       client_address: order.address || "",
@@ -374,7 +474,9 @@ const AdminSuratJalan = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
 
-    if (!formData.order_id) {
+    const hasOrder = formData.order_id !== "" && formData.order_id != null;
+    const hasCustom = formData.custom_request_id !== "" && formData.custom_request_id != null;
+    if (!hasOrder && !hasCustom) {
       toast.error("Silakan pilih pesanan terlebih dahulu");
       return;
     }
@@ -386,7 +488,10 @@ const AdminSuratJalan = () => {
 
       const payload = {
         ...formData,
+        order_id: hasOrder ? Number(formData.order_id) : null,
+        custom_request_id: hasCustom ? Number(formData.custom_request_id) : null,
         wedding_date: toDateOnlyString(formData.wedding_date) || formData.wedding_date || "",
+        maps_link: (formData.maps_link || "").trim() || null,
       };
       const response = await fetch(url, {
         method: editingItem ? "PUT" : "POST",
@@ -567,7 +672,7 @@ const AdminSuratJalan = () => {
       // Vendor name
       doc.setFontSize(12);
       doc.setFont("helvetica", "bold");
-      doc.text(item.vendor_name || "Website Owner Organizer", 20, 35);
+      doc.text(item.vendor_name || "User Wedding Organizer", 20, 35);
 
       // Nomor surat jalan
       doc.setFontSize(10);
@@ -584,27 +689,61 @@ const AdminSuratJalan = () => {
       doc.setFont("helvetica", "normal");
       doc.text(`Nama: ${item.client_name}`, 20, 68);
       doc.text(`No. Telepon: ${item.client_phone || "-"}`, 20, 74);
-      
-      if (item.client_address) {
-        const addressLines = doc.splitTextToSize(`Alamat: ${item.client_address}`, 170);
+
+      const mapsUrl = item.maps_link && String(item.maps_link).trim();
+      const hasMapsQr = Boolean(mapsUrl);
+      const leftColumnWidth = hasMapsQr ? 130 : 170;
+      const addressLines = item.client_address
+        ? doc.splitTextToSize(`Alamat: ${item.client_address}`, leftColumnWidth)
+        : [];
+
+      if (addressLines.length > 0) {
         doc.text(addressLines, 20, 80);
       }
 
-      const yPos = item.client_address ? 90 + (doc.splitTextToSize(item.client_address, 170).length * 5) : 86;
+      const yPos = addressLines.length > 0 ? 86 + addressLines.length * 5 : 86;
 
       doc.text(`Tanggal Acara: ${item.wedding_date ? formatDate(item.wedding_date) : "-"}`, 20, yPos);
+
+      if (hasMapsQr) {
+        try {
+          toast.loading("Membuat QR peta...", { id: loadingToast });
+          const qrDataUrl = await QRCode.toDataURL(mapsUrl, {
+            width: 200,
+            margin: 1,
+            errorCorrectionLevel: "M",
+          });
+          const qrX = 150;
+          const qrTitleY = 60;
+          const qrSizeMm = 38;
+          doc.setFontSize(9);
+          doc.setFont("helvetica", "bold");
+          doc.text(["Lokasi Acara", "(Scan QR)"], qrX, qrTitleY, { align: "center" });
+          const qrTopY = qrTitleY + 6;
+          doc.addImage(qrDataUrl, "PNG", qrX - qrSizeMm / 2, qrTopY, qrSizeMm, qrSizeMm);
+        } catch (qrErr) {
+          console.error("QR Maps error:", qrErr);
+        }
+      }
+
+      // Alur konten kiri tidak terdorong oleh tinggi QR kanan.
+      let yAfterTanggal = yPos + 8;
+      if (yAfterTanggal > 250) {
+        doc.addPage();
+        yAfterTanggal = 20;
+      }
 
       // Package Information
       doc.setFontSize(12);
       doc.setFont("helvetica", "bold");
-      doc.text("Paket yang Diambil:", 20, yPos + 12);
+      doc.text("Paket yang Diambil:", 20, yAfterTanggal + 4);
 
       doc.setFontSize(10);
       doc.setFont("helvetica", "normal");
-      doc.text(item.package_name || "-", 20, yPos + 20);
+      doc.text(item.package_name || "-", 20, yAfterTanggal + 12);
 
       // Detail Dekorasi
-      let currentY = yPos + 32;
+      let currentY = yAfterTanggal + 24;
       doc.setFontSize(12);
       doc.setFont("helvetica", "bold");
       doc.text("Detail Dekorasi:", 20, currentY);
@@ -765,6 +904,16 @@ const AdminSuratJalan = () => {
         currentY += 6;
       }
 
+      if (item.piring) {
+        doc.text(`Piring: ${item.piring}`, 20, currentY);
+        currentY += 6;
+      }
+
+      if (item.nama_pasangan) {
+        doc.text(`Nama Pasangan: ${item.nama_pasangan}`, 20, currentY);
+        currentY += 6;
+      }
+
       if (item.notes) {
         currentY += 2;
         const notesLines = doc.splitTextToSize(`Catatan Lain: ${item.notes}`, 170);
@@ -897,6 +1046,9 @@ const AdminSuratJalan = () => {
                     </button>
                   </div>
                 </div>
+                <p className="text-xs text-gray-500 mb-3">
+                  Total client: {totalUniqueCalendarClients}
+                </p>
 
                 <div className="border border-gray-200 rounded-xl overflow-hidden">
                   <div className="grid grid-cols-7 bg-gray-50 text-xs font-semibold text-gray-600">
@@ -1088,7 +1240,7 @@ const AdminSuratJalan = () => {
                         <div className="text-sm text-gray-900">{item.package_name}</div>
                       </td>
                       <td className="px-6 py-4">
-                        <div className="text-sm text-gray-900">{item.vendor_name || "Website Owner Organizer"}</div>
+                        <div className="text-sm text-gray-900">{item.vendor_name || "User Wedding Organizer"}</div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="flex items-center gap-2">
@@ -1192,8 +1344,8 @@ const AdminSuratJalan = () => {
                       onInputChange={handleSearchOrders}
                       options={orderOptions}
                       isLoading={isLoadingOrders}
-                      isDisabled={!!editingItem}
                       isClearable
+                      filterOption={() => true}
                       placeholder="Ketik untuk mencari pesanan..."
                       noOptionsMessage={() => "Tidak ada pesanan ditemukan"}
                       loadingMessage={() => "Memuat data..."}
@@ -1209,8 +1361,7 @@ const AdminSuratJalan = () => {
                           },
                           borderRadius: '0.5rem',
                           padding: '0.125rem',
-                          backgroundColor: editingItem ? '#f3f4f6' : 'white',
-                          cursor: editingItem ? 'not-allowed' : 'default'
+                          backgroundColor: 'white'
                         }),
                         menu: (base) => ({
                           ...base,
@@ -1233,11 +1384,9 @@ const AdminSuratJalan = () => {
                         })
                       }}
                     />
-                    {editingItem && (
-                      <p className="text-xs text-gray-500 mt-1">
-                        Tidak dapat mengubah pesanan saat mengedit. Hapus dan buat baru jika perlu mengganti pesanan.
-                      </p>
-                    )}
+                    <p className="text-xs text-gray-500 mt-1">
+                      Saat edit, pesanan tetap bisa diganti jika data pesanan lama sudah dihapus.
+                    </p>
                   </div>
 
                   {/* Client Information - Display Only */}
@@ -1373,6 +1522,49 @@ const AdminSuratJalan = () => {
                     />
                   </div>
 
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Piring
+                    </label>
+                    <input
+                      type="text"
+                      name="piring"
+                      value={formData.piring}
+                      onChange={handleInputChange}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Nama pasangan
+                    </label>
+                    <input
+                      type="text"
+                      name="nama_pasangan"
+                      value={formData.nama_pasangan}
+                      onChange={handleInputChange}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
+                    />
+                  </div>
+
+                  <div className="md:col-span-2">
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Link Google Maps (QR di surat jalan)
+                    </label>
+                    <input
+                      type="url"
+                      name="maps_link"
+                      value={formData.maps_link}
+                      onChange={handleInputChange}
+                      placeholder="https://maps.app.goo.gl/..."
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
+                    />
+                    <p className="text-xs text-gray-500 mt-1">
+                      Tempel link share dari Google Maps. QR tercetak otomatis di PDF untuk tim/vendor.
+                    </p>
+                  </div>
+
                   <div className="md:col-span-2">
                     <label className="block text-sm font-medium text-gray-700 mb-2">
                       Nama Vendor
@@ -1486,9 +1678,23 @@ const AdminSuratJalan = () => {
                       <div>
                         <span className="font-medium text-gray-700">Vendor:</span>
                         <p className="text-gray-900">
-                          {selectedItem.vendor_name || "Website Owner Organizer"}
+                          {selectedItem.vendor_name || "User Wedding Organizer"}
                         </p>
                       </div>
+                      {selectedItem.maps_link?.trim() ? (
+                        <div>
+                          <span className="font-medium text-gray-700">Google Maps (QR surat jalan):</span>
+                          <a
+                            href={selectedItem.maps_link.trim()}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-sm text-primary-600 break-all block mt-1"
+                          >
+                            {selectedItem.maps_link.trim()}
+                          </a>
+                          <GoogleMapsVendorQr url={selectedItem.maps_link} />
+                        </div>
+                      ) : null}
                     </div>
                   </div>
                 </div>
@@ -1599,6 +1805,14 @@ const AdminSuratJalan = () => {
                     <p className="text-gray-900">
                       <span className="font-medium">Ukuran Tenda:</span>{" "}
                       {selectedItem.ukuran_tenda || "-"}
+                    </p>
+                    <p className="text-gray-900">
+                      <span className="font-medium">Piring:</span>{" "}
+                      {selectedItem.piring || "-"}
+                    </p>
+                    <p className="text-gray-900">
+                      <span className="font-medium">Nama Pasangan:</span>{" "}
+                      {selectedItem.nama_pasangan || "-"}
                     </p>
                     {selectedItem.notes && (
                       <p className="text-gray-900 mt-3">

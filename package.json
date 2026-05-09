@@ -9,7 +9,8 @@
     "lint": "eslint .",
     "preview": "vite preview",
     "server": "cd backend && node server.js",
-    "dev:server": "cd backend && nodemon server.js"
+    "dev:server": "cd backend && nodemon server.js",
+    "migrate": "cd backend && npm run migrate"
   },
   "dependencies": {
     "aos": "^2.3.4",
@@ -21,6 +22,7 @@
     "lucide-react": "^0.525.0",
     "multer": "^1.4.5-lts.1",
     "mysql2": "^3.14.2",
+    "qrcode": "^1.5.4",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "react-helmet-async": "^2.0.4",

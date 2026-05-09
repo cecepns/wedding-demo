@@ -110,7 +110,7 @@ const AdminContactMessages = () => {
   return (
     <>
       <Helmet>
-        <title>Pesan Kontak - Admin Website Owner</title>
+        <title>Pesan Kontak - Admin User Wedding</title>
       </Helmet>
 
       <AdminLayout>

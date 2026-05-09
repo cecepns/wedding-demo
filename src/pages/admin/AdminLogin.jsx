@@ -52,8 +52,8 @@ const AdminLogin = () => {
   return (
     <>
       <Helmet>
-        <title>Admin Login - Website Owner</title>
-        <meta name="description" content="Portal login admin untuk sistem manajemen Website Owner." />
+        <title>Admin Login - User Wedding</title>
+        <meta name="description" content="Portal login admin untuk sistem manajemen User Wedding." />
       </Helmet>
 
       <div className="min-h-screen gradient-bg flex items-center justify-center px-4">
@@ -82,7 +82,7 @@ const AdminLogin = () => {
                 onChange={handleInputChange}
                 required
                 className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
-                placeholder="demo@admin.com"
+                placeholder="admin@userwedding.com"
               />
             </div>
 
@@ -111,7 +111,7 @@ const AdminLogin = () => {
           <div className="mt-6 text-center">
             <p className="text-sm text-gray-500">
               Kredensial demo:<br />
-              Email: demo@admin.com<br />
+              Email: admin@userwedding.com<br />
               Password: admin123
             </p>
           </div>

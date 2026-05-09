@@ -64,8 +64,8 @@ const Contact = () => {
   return (
     <>
       <Helmet>
-        <title>Hubungi Kami - Website Owner</title>
-        <meta name="description" content="Hubungi Website Owner untuk kebutuhan perencanaan pernikahan Anda. Booking konsultasi hari ini." />
+        <title>Hubungi Kami - User Wedding</title>
+        <meta name="description" content="Hubungi User Wedding untuk kebutuhan perencanaan pernikahan Anda. Booking konsultasi hari ini." />
       </Helmet>
 
       <div className="pt-20">

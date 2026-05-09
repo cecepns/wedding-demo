@@ -31,7 +31,7 @@ const AdminDashboard = () => {
   return (
     <>
       <Helmet>
-        <title>Admin Dashboard - Website Owner</title>
+        <title>Admin Dashboard - User Wedding</title>
       </Helmet>
 
       <AdminLayout>

@@ -14,6 +14,7 @@ import About from './pages/About';
 import Articles from './pages/Articles';
 import ArticleDetail from './pages/ArticleDetail';
 import Contact from './pages/Contact';
+import MyOrder from './pages/MyOrder';
 import AdminLogin from './pages/admin/AdminLogin';
 import AdminDashboard from './pages/admin/AdminDashboard';
 import AdminItems from './pages/admin/AdminItems';
@@ -28,6 +29,8 @@ import AdminContactMessages from './pages/admin/AdminContactMessages';
 import AdminContent from './pages/admin/AdminContent';
 import AdminServiceCards from './pages/admin/AdminServiceCards';
 import AdminServiceFeatures from './pages/admin/AdminServiceFeatures';
+import AdminVendorCalendar from './pages/admin/AdminVendorCalendar';
+import AdminChangePassword from './pages/admin/AdminChangePassword';
 import ProtectedRoute from './components/ProtectedRoute';
 
 function App() {
@@ -104,6 +107,16 @@ function App() {
                 <AdminServiceFeatures />
               </ProtectedRoute>
             } />
+            <Route path="/admin/vendor-calendar" element={
+              <ProtectedRoute>
+                <AdminVendorCalendar />
+              </ProtectedRoute>
+            } />
+            <Route path="/admin/change-password" element={
+              <ProtectedRoute>
+                <AdminChangePassword />
+              </ProtectedRoute>
+            } />
 
             
             {/* Public Routes */}
@@ -121,6 +134,7 @@ function App() {
                     <Route path="/articles" element={<Articles />} />
                     <Route path="/articles/:id" element={<ArticleDetail />} />
                     <Route path="/contact" element={<Contact />} />
+                    <Route path="/pesanan-saya" element={<MyOrder />} />
                   </Routes>
                 </main>
                 <Footer />
