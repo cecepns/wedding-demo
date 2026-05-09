@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Helmet } from 'react-helmet-async';
+import { useSiteIdentity } from '../../hooks/useSiteIdentity';
 
 const AdminLogin = () => {
   const [credentials, setCredentials] = useState({
@@ -10,6 +11,7 @@ const AdminLogin = () => {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
+  const { appName, appInitial } = useSiteIdentity();
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
@@ -52,15 +54,15 @@ const AdminLogin = () => {
   return (
     <>
       <Helmet>
-        <title>Admin Login - User Wedding</title>
-        <meta name="description" content="Portal login admin untuk sistem manajemen User Wedding." />
+        <title>Admin Login - {appName}</title>
+        <meta name="description" content={`Portal login admin untuk sistem manajemen ${appName}.`} />
       </Helmet>
 
       <div className="min-h-screen gradient-bg flex items-center justify-center px-4">
         <div className="max-w-md w-full bg-white rounded-2xl shadow-2xl p-8 animate-scale-in">
           <div className="text-center mb-8">
             <div className="w-16 h-16 bg-gradient-to-r from-primary-500 to-secondary-500 rounded-full flex items-center justify-center mx-auto mb-4">
-              <span className="text-white font-bold text-2xl">U</span>
+              <span className="text-white font-bold text-2xl">{appInitial}</span>
             </div>
             <h1 className=" text-3xl font-bold text-gray-800 mb-2">Portal Admin</h1>
             <p className="text-gray-600">Masuk untuk mengelola layanan pernikahan Anda</p>

@@ -32,11 +32,13 @@ import AdminServiceFeatures from './pages/admin/AdminServiceFeatures';
 import AdminVendorCalendar from './pages/admin/AdminVendorCalendar';
 import AdminChangePassword from './pages/admin/AdminChangePassword';
 import ProtectedRoute from './components/ProtectedRoute';
+import SiteIdentitySync from './components/SiteIdentitySync';
 
 function App() {
   return (
     <HelmetProvider>
       <Router>
+        <SiteIdentitySync />
         <ScrollToTop />
         <div className="min-h-screen flex flex-col">
           <Routes>

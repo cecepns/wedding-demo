@@ -164,7 +164,7 @@ const AdminContent = () => {
           <div className="flex justify-between items-center">
             <div>
               <h1 className="text-3xl font-bold text-gray-800 mb-2">Kelola Konten</h1>
-              <p className="text-gray-600">Kelola konten dinamis untuk website Anda.</p>
+              <p className="text-gray-600">Kelola konten dinamis untuk website Anda. Edit section <strong>site_identity</strong> untuk ubah nama aplikasi, nama perusahaan, dan inisial logo.</p>
             </div>
             <div className="flex items-center gap-4">
               <a
