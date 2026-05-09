@@ -31,11 +31,13 @@ const buildIdentity = (data) => {
   const appName = String(data?.title || '').trim() || DEFAULT_APP_NAME;
   const companyName = String(data?.subtitle || '').trim() || DEFAULT_COMPANY_NAME;
   const appInitial = normalizeInitial(data?.button_text) || deriveInitialFromName(appName);
+  const logoUrl = String(data?.image_url || '').trim();
 
   return {
     appName,
     companyName,
     appInitial,
+    logoUrl,
   };
 };
 

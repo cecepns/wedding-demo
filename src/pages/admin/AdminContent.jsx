@@ -1,14 +1,16 @@
 import { useState, useEffect } from 'react';
 import { Helmet } from 'react-helmet-async';
-import { Edit, Plus, Trash2 } from 'lucide-react';
+import { Edit, Plus, Trash2, Upload } from 'lucide-react';
 import toast from 'react-hot-toast';
 import AdminLayout from '../../components/AdminLayout';
+import { API_BASE, imageUrl } from '../../utils/imageUrl';
 
 const AdminContent = () => {
   const [sections, setSections] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [editingSection, setEditingSection] = useState(null);
+  const [uploadingImage, setUploadingImage] = useState(false);
   const [formData, setFormData] = useState({
     section_name: '',
     title: '',
@@ -143,6 +145,45 @@ const AdminContent = () => {
     resetForm();
   };
 
+  const handleUploadImage = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!/image\/(jpeg|png|gif|webp)/.test(file.type)) {
+      toast.error('Hanya file gambar (JPEG, PNG, GIF, WebP) yang diizinkan.');
+      return;
+    }
+
+    const form = new FormData();
+    form.append('file', file);
+
+    try {
+      setUploadingImage(true);
+      const response = await fetch(`${API_BASE}/api/upload`, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${localStorage.getItem('admin_token')}`,
+        },
+        body: form,
+      });
+
+      const data = await response.json();
+      if (!response.ok || !data?.filename) {
+        toast.error(data?.message || 'Upload gambar gagal');
+        return;
+      }
+
+      setFormData((prev) => ({ ...prev, image_url: data.filename }));
+      toast.success('Gambar berhasil diupload');
+    } catch (error) {
+      console.error('Error uploading image:', error);
+      toast.error('Upload gambar gagal');
+    } finally {
+      setUploadingImage(false);
+      e.target.value = '';
+    }
+  };
+
   if (loading) {
     return (
       <AdminLayout>
@@ -160,11 +201,13 @@ const AdminContent = () => {
       </Helmet>
 
       <AdminLayout>
+        {/** section khusus untuk branding global */}
+        {/** title: nama app, subtitle: nama perusahaan, button_text: inisial, image_url: logo */}
         <div className="mb-8">
           <div className="flex justify-between items-center">
             <div>
               <h1 className="text-3xl font-bold text-gray-800 mb-2">Kelola Konten</h1>
-              <p className="text-gray-600">Kelola konten dinamis untuk website Anda. Edit section <strong>site_identity</strong> untuk ubah nama aplikasi, nama perusahaan, dan inisial logo.</p>
+              <p className="text-gray-600">Kelola konten dinamis untuk website Anda. Edit section <strong>site_identity</strong> untuk ubah nama aplikasi, nama perusahaan, inisial logo, dan logo utama (isi di field URL Gambar).</p>
             </div>
             <div className="flex items-center gap-4">
               <a
@@ -259,6 +302,10 @@ const AdminContent = () => {
               </div>
 
               <form onSubmit={handleSubmit} className="p-6 space-y-6">
+                {(() => {
+                  const isSiteIdentity = formData.section_name === 'site_identity';
+                  return (
+                    <>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -341,13 +388,40 @@ const AdminContent = () => {
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     URL Gambar
                   </label>
-                  <input
-                    type="url"
-                    value={formData.image_url}
-                    onChange={(e) => setFormData({...formData, image_url: e.target.value})}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
-                    placeholder="https://example.com/image.jpg"
-                  />
+                    {formData.image_url && (
+                      <img
+                        src={imageUrl(formData.image_url)}
+                        alt="Preview"
+                        className="h-24 w-auto rounded-lg border border-gray-200 object-cover mb-3"
+                        onError={(ev) => {
+                          ev.currentTarget.style.display = 'none';
+                        }}
+                      />
+                    )}
+                    <label className="inline-flex items-center gap-2 px-3 py-2 bg-[#2f4274] text-white rounded-lg cursor-pointer hover:bg-[#2a3b68] text-sm font-medium">
+                      <Upload size={16} />
+                      {uploadingImage ? 'Mengupload...' : 'Upload Gambar'}
+                      <input
+                        type="file"
+                        accept="image/jpeg,image/png,image/gif,image/webp"
+                        className="hidden"
+                        onChange={handleUploadImage}
+                        disabled={uploadingImage}
+                      />
+                    </label>
+                    <input
+                      type="text"
+                      value={formData.image_url}
+                      onChange={(e) => setFormData({...formData, image_url: e.target.value})}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent mt-2"
+                      placeholder={isSiteIdentity ? 'Logo akan diisi dari hasil upload' : 'URL gambar atau filename upload'}
+                      readOnly={isSiteIdentity}
+                    />
+                    {isSiteIdentity && (
+                      <p className="text-xs text-gray-500 mt-1">
+                        Untuk logo brand, gunakan tombol upload (tanpa input link manual).
+                      </p>
+                    )}
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -377,6 +451,9 @@ const AdminContent = () => {
                     />
                   </div>
                 </div>
+                    </>
+                  );
+                })()}
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">

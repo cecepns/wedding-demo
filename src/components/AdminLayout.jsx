@@ -1,12 +1,13 @@
 import { useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
+import PropTypes from 'prop-types';
 import { useSiteIdentity } from '../hooks/useSiteIdentity';
 
 const AdminLayout = ({ children }) => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const location = useLocation();
   const navigate = useNavigate();
-  const { appName, appInitial } = useSiteIdentity();
+  const { appName, appInitial, logoUrl } = useSiteIdentity();
 
   const menuItems = [
     { name: 'Dashboard', path: '/admin/dashboard', icon: 'M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a1 1 0 00-1-1H6a1 1 0 00-1-1V7a3 3 0 013-3h4a3 3 0 013 3v1h1a1 1 0 011 1v9a2 2 0 01-2 2H5a2 2 0 01-2-2V7a2 2 0 012-2z' },
@@ -48,9 +49,13 @@ const AdminLayout = ({ children }) => {
         {/* Header - Fixed at top */}
         <div className="flex items-center justify-center h-20 px-4 bg-gradient-to-r from-primary-600 to-secondary-600 flex-shrink-0">
           <Link to="/" className="flex items-center space-x-3">
-            <div className="w-8 h-8 bg-white rounded-full flex items-center justify-center">
-              <span className="text-primary-600 font-bold">{appInitial}</span>
-            </div>
+            {logoUrl ? (
+              <img src={logoUrl} alt={appName} className="w-10 h-10 rounded-full object-cover bg-white" />
+            ) : (
+              <div className="w-8 h-8 bg-white rounded-full flex items-center justify-center">
+                <span className="text-primary-600 font-bold">{appInitial}</span>
+              </div>
+            )}
             <span className=" text-xl font-bold text-white">{appName}</span>
           </Link>
         </div>
@@ -127,6 +132,10 @@ const AdminLayout = ({ children }) => {
       </div>
     </div>
   );
+};
+
+AdminLayout.propTypes = {
+  children: PropTypes.node,
 };
 
 export default AdminLayout;

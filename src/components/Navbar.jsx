@@ -1,11 +1,13 @@
 import { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import logo from '../assets/logo.png';
+import { useSiteIdentity } from '../hooks/useSiteIdentity';
 
 const Navbar = () => {
   const [isOpen, setIsOpen] = useState(false);
   const [isScrolled, setIsScrolled] = useState(false);
   const location = useLocation();
+  const { appName, logoUrl } = useSiteIdentity();
 
   useEffect(() => {
     const handleScroll = () => {
@@ -36,7 +38,7 @@ const Navbar = () => {
         <div className="p-4 md:px-8 flex items-center justify-between h-20">
           {/* Logo */}
           <Link to="/" className="flex items-center space-x-3">
-            <img src={logo} alt="logo" className="w-24 h-auto" />
+            <img src={logoUrl || logo} alt={appName} className="w-24 h-auto" />
           </Link>
 
           {/* Desktop Menu */}
